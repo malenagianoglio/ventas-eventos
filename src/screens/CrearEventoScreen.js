@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Pressable, Keyboard, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Pressable, Keyboard, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { insertEvent } from '../../database';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -40,10 +40,11 @@ export default function CrearEventoScreen({ navigation }) {
 };
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}> 
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Crear Evento</Text>
+      <TextInput style={styles.title} editable={false} value="Crear Evento"/>
 
-      <Text style={styles.label}>Nombre del evento</Text>
+      <TextInput style={styles.label} editable={false} value="Nombre del evento:"/>
       <TextInput
         placeholder="Ingresá el nombre"
         style={styles.input}
@@ -52,7 +53,7 @@ export default function CrearEventoScreen({ navigation }) {
         blurOnSubmit={true}
       />
 
-      <Text style={styles.label}>Tipo de evento</Text>
+      <TextInput style={styles.label} editable={false} value="Tipo de evento:"/>
       <View style={styles.selectorContainer}>
         <Pressable 
           style={[styles.selectorButton, type === 'propio' && styles.selectorButtonActive]}
@@ -61,7 +62,7 @@ export default function CrearEventoScreen({ navigation }) {
             setType('propio');
           }}
         >
-          <Text style={[styles.selectorText, type === 'propio' && styles.selectorTextActive]}>Propio</Text>
+          <TextInput style={{fontSize: 16, color: type === 'propio' ? '#fff' : '#000000'}} editable={false} value="Propio"/>
         </Pressable>
         <Pressable 
           style={[styles.selectorButton, type === 'alquilado' && styles.selectorButtonActive]}
@@ -70,19 +71,30 @@ export default function CrearEventoScreen({ navigation }) {
             setType('alquilado');
             }}
           >
-            <Text style={[styles.selectorText, type === 'alquilado' && styles.selectorTextActive]}>Alquilado</Text>
+            <TextInput style={{fontSize: 16, color: type === 'alquilado' ? '#fff' : '#000000'}} editable={false} value="Alquilado"/>
           </Pressable>
           </View>
 
-<Text style={styles.label}>Fecha (Opcional)</Text>
+<TextInput style={{...styles.label}} editable={false} value="Fecha (Opcional):"/>
+    <View style={{...styles.inputContainer}}>
       <TouchableOpacity 
-        style={styles.input}
+        style={styles.datePickerTrigger}
         onPress={() => setShowDatePicker(true)}
       >
         <Text style={{ fontSize: 16, color: date ? '#000' : '#999' }}>
           {date ? date.toLocaleDateString('es-AR') : 'Seleccioná una fecha'}
         </Text>
       </TouchableOpacity>
+
+      {date && (
+        <TouchableOpacity 
+          onPress={() => setDate(null)} 
+          style={styles.clearButton}
+        >
+          <Text style={styles.buttonText}>X</Text>
+        </TouchableOpacity>
+      )}
+    </View>
 
       {showDatePicker && (
         <DateTimePicker
@@ -98,30 +110,57 @@ export default function CrearEventoScreen({ navigation }) {
       )}
 
       <TouchableOpacity style={styles.button} onPress={handleCreateEvent}>
-        <Text style={styles.buttonText}>Crear Evento</Text>
+        <TextInput value="Crear Evento" editable={false} style={styles.buttonText}/>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    height: 50,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+    overflow: 'hidden', 
+  },
+  datePickerTrigger: {
+    flex: 1, 
+    justifyContent: 'center',
+    height: '100%',
+  },
+  clearButton: {
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    height: '30',
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    padding: 0,
+    margin: 0,
+  },
   container: {
     padding: 20,
     justifyContent: 'center',
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
   },
   title: {
     fontSize: 26,
-    marginBottom: 30,
-    textAlign: 'center',
+    margin: 0,
     fontWeight: 'bold',
+    color: '#2D3436',
   },
   label: {
     fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 5,
     fontWeight: '500',
-    marginTop: 5,
+    color:'#2D3436',
   },
   input: {
     borderWidth: 1,
@@ -130,6 +169,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 15,
     fontSize: 16,
+    height: 50,
+    width: '100%',
   },
   selectorContainer: {
     flexDirection: 'row',
@@ -138,16 +179,16 @@ const styles = StyleSheet.create({
   },
   selectorButton: {
     flex: 1,
-    padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ccc',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
+    height: 50,
   },
   selectorButtonActive: {
-    backgroundColor: '#222',
-    borderColor: '#222',
+    backgroundColor: '#0F3460',
+    borderColor: '#0F3460',
   },
   selectorText: {
     fontSize: 16,
@@ -158,11 +199,11 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   button: {
-    backgroundColor: '#222',
-    padding: 15,
+    backgroundColor: '#0F3460',
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
+    height: 50,
   },
   buttonText: {
     color: '#fff',

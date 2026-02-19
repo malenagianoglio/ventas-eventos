@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 
 export default function LoginClubScreen({ navigation }) {
@@ -14,8 +14,9 @@ export default function LoginClubScreen({ navigation }) {
   };
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
     <View style={styles.container}>
-      <Text style={styles.title}>Ingreso Club</Text>
+      <TextInput style={styles.title} value="Ingreso Club" editable={false} />
 
       <TextInput
         placeholder="Usuario"
@@ -33,9 +34,10 @@ export default function LoginClubScreen({ navigation }) {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Ingresar</Text>
+        <TextInput value="Ingresar" editable={false} style={{...styles.buttonText, height: 40}} />
       </TouchableOpacity>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -44,12 +46,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    color: '#fff',
+    backgroundColor: '#F5F5F5',
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
+    fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
+    color: '#2D3436',
   },
   input: {
     borderWidth: 1,
@@ -57,15 +61,21 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,
+    width: '90%',
+    alignSelf: 'center',
   },
   button: {
-    backgroundColor: '#222',
-    padding: 15,
+    backgroundColor: '#0F3460',
+    padding: 6,
     borderRadius: 8,
+    width: '90%',
+    alignSelf: 'center',
   },
   buttonText: {
     color: '#fff',
     textAlign: 'center',
     fontSize: 16,
+    margin: 0,
+    padding: 0,
   },
 });

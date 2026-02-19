@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { getEventByAccessCode } from '../../database';
 
@@ -25,8 +25,9 @@ export default function LoginEventoScreen() {
   }
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
     <View style={styles.container}> 
-      <Text style={styles.title}>Ingreso con PIN</Text>
+      <TextInput value="Ingreso con PIN" editable={false} style={{...styles.title}}/>
 
       <TextInput
         placeholder="Código de acceso"
@@ -36,9 +37,10 @@ export default function LoginEventoScreen() {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Ingresar</Text>
+        <TextInput value="Ingresar" editable={false} style={{...styles.buttonText, height: 40}} />
       </TouchableOpacity>
     </View>
+    </KeyboardAvoidingView>
   );
 
 }
@@ -48,11 +50,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#F5F5F5',
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
+    fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
+    color: '#2D3436',
   },
   input: {
     borderWidth: 1,
@@ -60,16 +65,22 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,
+    width: '90%',
+    alignSelf: 'center',
   },
   button: {
-    backgroundColor: '#222',
-    padding: 15,
+    backgroundColor: '#0F3460',
+    padding: 6,
     borderRadius: 8,
+    width: '90%',
+    alignSelf: 'center',
   },
   buttonText: {
     color: '#fff',
     textAlign: 'center',
     fontSize: 16,
+    margin: 0,
+    padding: 0,
   },
 });
 

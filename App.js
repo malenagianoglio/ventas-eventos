@@ -3,7 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { initDB } from './database';
 import { useEffect } from 'react';  
+import { Text, View, ActivityIndicator } from 'react-native';
+import { useFonts } from 'expo-font';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
+// Importación de pantallas
 import StartScreen from './src/screens/StartScreen';
 import LoginClubScreen from './src/screens/LoginClubScreen';
 import LoginEventoScreen from './src/screens/LoginEventoScreen';
@@ -18,17 +22,44 @@ import ConfiguracionScreen from './src/screens/ConfiguracionScreen';
 
 const Stack = createNativeStackNavigator();
 
+// PARCHE GLOBAL: Esto obliga a que cualquier <Text> que no tenga color 
+// use negro sólido, ignorando el gris de la tablet.
+if (Text.defaultProps == null) Text.defaultProps = {};
+Text.defaultProps.style = { color: 'rgba(0, 0, 0, 0.99)' };
+
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    ...MaterialIcons.font,
+    ...Ionicons.font,
+  });
 
   useEffect(() => {
+    // Inicializar DB
     initDB()
       .then(() => console.log('Base de datos inicializada'))
-      .catch((error) => console.error('Error al inicializar la base de datos:', error));
-  }, []);
+      .catch((error) => console.error('Error al inicializar DB:', error));
+    
+    console.log('¿Fuentes de iconos listas?:', fontsLoaded);
+  }, [fontsLoaded]);
+
+  // Si las fuentes no cargan, mostramos un cargando en lugar de pantalla negra
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Start" screenOptions={{ headerShown: false }}>
+      <Stack.Navigator 
+        initialRouteName="Start" 
+        screenOptions={{ 
+          headerShown: false,
+          contentStyle: { backgroundColor: '#FFFFFF' } // Fuerza fondo blanco en todas las pantallas
+        }}
+      >
         <Stack.Screen name="Start" component={StartScreen} />
         <Stack.Screen name="LoginClub" component={LoginClubScreen} />
         <Stack.Screen name="LoginEvento" component={LoginEventoScreen} />

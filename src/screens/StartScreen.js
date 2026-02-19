@@ -1,25 +1,30 @@
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import CustomText from '../../CustomText';
+import { useColorScheme } from 'react-native';
 
 export default function StartScreen() {
 
     const navigation = useNavigation();
+    const colorScheme = useColorScheme();
+    console.log('COLOR SCHEME:', colorScheme);
 
   return (
+    
     <View style={styles.container}>
+     
+      <TextInput style={styles.title} value="Control de Ventas" editable={false} />
+      <TextInput style={styles.subtitle} value="Sistema de gestión para eventos" editable={false} />
 
-      <Text style={styles.title}>Control de Ventas</Text>
-      <Text style={styles.subtitle}>Sistema de gestión para eventos</Text>
+      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('LoginClub')}>
+        <TextInput value="Ingresar como Club" editable={false} style={{color: '#ffffff', fontSize: 20, fontWeight: 'bold', margin: 0, padding: 0, height: 24}} />
+        <TextInput value="Administrador del sistema" editable={false} style={{color: '#ffffff', fontSize: 14, margin: 0, marginTop: 5, padding: 0, height: 24}}/>
+      </TouchableOpacity>
 
-      <Pressable style={styles.button} onPress={() => navigation.navigate('LoginClub')}>
-        <Text style={styles.buttonTitle}>Ingresar como Club</Text>
-        <Text style={styles.buttonSubtitle}>Administrador del sistema</Text>
-      </Pressable>
-
-      <Pressable style={styles.buttonSecondary} onPress={() => navigation.navigate('LoginEvento')}>
-        <Text style={styles.buttonTitle}>Ingresar como Evento</Text>
-        <Text style={styles.buttonSubtitle}>Acceso con PIN</Text>
-      </Pressable>
+      <TouchableOpacity style={styles.buttonSecondary} onPress={() => navigation.navigate('LoginEvento')}>
+        <TextInput value="Ingresar como Evento" editable={false} style={{color: '#ffffff', fontSize: 20, fontWeight: 'bold', margin: 0, padding: 0, height: 24}} />
+        <TextInput value="Acceso con PIN" editable={false} style={{color: '#ffffff', fontSize: 14, margin: 0, marginTop: 5, padding: 0, height: 24}}/>
+      </TouchableOpacity>
 
     </View>
   );
@@ -31,26 +36,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
-    marginBottom: 5,
-    color: 'black',
-    opacity: 1,
+    color: '#2D3436',
   },
   subtitle: {
     fontSize: 16,
-    marginBottom: 40,
-    color: '#555',
+    marginBottom: 20,
+    color: '#2D3436',
     textAlign: 'center',
   },
   button: {
     width: '90%',
     paddingVertical: 20,
     borderRadius: 12,
-    backgroundColor: '#111',
+    backgroundColor: '#0F3460',
     marginBottom: 20,
     alignItems: 'center',
   },
@@ -58,18 +61,7 @@ const styles = StyleSheet.create({
     width: '90%',
     paddingVertical: 20,
     borderRadius: 12,
-    backgroundColor: '#444',
+    backgroundColor: '#54A0FF',
     alignItems: 'center',
-  },
-  buttonTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    opacity: 1,
-  },
-  buttonSubtitle: {
-    color: '#ddd',
-    fontSize: 14,
-    marginTop: 5,
   },
 });

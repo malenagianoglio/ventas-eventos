@@ -1,15 +1,55 @@
-import { View, Text, StyleSheet, FlatList, Alert, Modal, TextInput, Pressable, ScrollView, TouchableOpacity, Keyboard} from 'react-native';
-import { useEffect, useState } from 'react';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, FlatList, Alert, Modal, TextInput, Pressable, ScrollView, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+import Svg, { Path } from 'react-native-svg';
 import { initDB, getProductosByEvento, insertProductoEvento, updateProductoEvento, deleteProductoEvento } from '../../database';
+
+const IconoEditar = () => (
+  <Svg height="20px" viewBox="0 -960 960 960" width="20px" fill="#444">
+    <Path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/>
+  </Svg>
+);
+
+const IconoEliminar = () => (
+  <Svg height="20px" viewBox="0 -960 960 960" width="20px" fill="#fff">
+    <Path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/>
+  </Svg>
+);
+
+const IconoAgregar = () => (
+  <Svg height="28px" viewBox="0 -960 960 960" width="28px" fill="#fff">
+    <Path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/>
+  </Svg>
+);
+
+const IconoCerrar = () => (
+  <Svg height="24px" viewBox="0 -960 960 960" width="24px" fill="#222">
+    <Path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/>
+  </Svg>
+);
+
+const IconoProducto = ({ categoria }) => {
+  if (categoria === 'bebida') return (
+    <Svg height="28px" viewBox="0 -960 960 960" width="28px" fill="#e3e3e3">
+      <Path d="M340-80q-26 0-43-17t-17-43v-287L200-580q-15-28-17.5-58.5T192-700l60-140q8-19 25.5-29.5T320-880h320q21 0 38.5 10.5T704-840l60 140q11 27 8.5 57.5T755-580L675-427v287q0 26-17 43T615-80H340Zm0-80h275v-240H340v240Zm-8-320h291l75-140H257l75 140Zm8 320v-240 240Z"/>
+    </Svg>
+  );
+  if (categoria === 'comida') return (
+    <Svg height="28px" viewBox="0 -960 960 960" width="28px" fill="#e3e3e3">
+      <Path d="M280-80v-366q-51-14-85.5-56T160-600v-280h80v280h40v-280h80v280h40v-280h80v280q0 56-34.5 98T360-446v366h-80Zm320 0v-320H480v-280q0-83 58.5-141.5T680-880v800h-80Z"/>
+    </Svg>
+  );
+  return (
+    <Svg height="28px" viewBox="0 -960 960 960" width="28px" fill="#e3e3e3">
+      <Path d="M280-80q-33 0-56.5-23.5T200-160v-480q0-33 23.5-56.5T280-720h80q0-66 47-113t113-47q66 0 113 47t47 113h80q33 0 56.5 23.5T840-640v480q0 33-23.5 56.5T760-80H280Zm0-80h480v-480h-80v80q0 17-11.5 28.5T640-520q-17 0-28.5-11.5T600-560v-80H360v80q0 17-11.5 28.5T320-520q-17 0-28.5-11.5T280-560v-80h-80v480Zm160-560h80q0-33-23.5-56.5T440-800q-33 0-56.5 23.5T360-720h80Z"/>
+    </Svg>
+  );
+};
 
 export default function ProductosScreen({ route }) {
   const { eventId } = route.params;
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
-  
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [nombre, setNombre] = useState('');
@@ -17,7 +57,6 @@ export default function ProductosScreen({ route }) {
   const [presentacion, setPresentacion] = useState('');
   const [precio, setPrecio] = useState('');
 
-  // Cargar productos al enfocar pantalla
   const loadProductos = async () => {
     try {
       await initDB();
@@ -30,7 +69,7 @@ export default function ProductosScreen({ route }) {
       setLoading(false);
     }
   };
-  
+
   useFocusEffect(
     useCallback(() => {
       loadProductos();
@@ -41,6 +80,7 @@ export default function ProductosScreen({ route }) {
     setNombre('');
     setPresentacion('');
     setPrecio('');
+    setCategoria('otro');
     setEditingId(null);
   };
 
@@ -49,10 +89,11 @@ export default function ProductosScreen({ route }) {
     setShowModal(true);
   };
 
-    const handleEditProduct = (producto) => {
+  const handleEditProduct = (producto) => {
     setNombre(producto.nombre);
     setPresentacion(producto.presentacion || '');
     setPrecio(producto.precio.toString());
+    setCategoria(producto.categoria || 'otro');
     setEditingId(producto.id);
     setShowModal(true);
   };
@@ -62,36 +103,20 @@ export default function ProductosScreen({ route }) {
       Alert.alert('Error', 'El nombre, precio y categoría son obligatorios');
       return;
     }
-
     const precioNum = parseFloat(precio);
     if (isNaN(precioNum) || precioNum <= 0) {
       Alert.alert('Error', 'El precio debe ser un número válido mayor a 0');
       return;
     }
-
     try {
       Keyboard.dismiss();
-      
       if (editingId) {
-        await updateProductoEvento({
-          id: editingId,
-          nombre,
-          categoria,
-          presentacion,
-          precio: precioNum,
-        });
+        await updateProductoEvento({ id: editingId, nombre, categoria, presentacion, precio: precioNum });
         Alert.alert('Éxito', 'Producto actualizado correctamente');
       } else {
-        await insertProductoEvento({
-          eventId,
-          nombre,
-          categoria,
-          presentacion,
-          precio: precioNum,
-        });
+        await insertProductoEvento({ eventId, nombre, categoria, presentacion, precio: precioNum });
         Alert.alert('Éxito', 'Producto agregado correctamente');
       }
-      
       setShowModal(false);
       resetForm();
       loadProductos();
@@ -104,18 +129,16 @@ export default function ProductosScreen({ route }) {
   const handleDeleteProduct = async (id) => {
     Alert.alert(
       'Eliminar producto',
-      '¿Estás seguro de que quieres eliminar este producto?',
+      '¿Estás seguro de que querés eliminar este producto?',
       [
-        { text: 'Cancelar', onPress: () => {} },
+        { text: 'Cancelar' },
         {
           text: 'Eliminar',
           onPress: async () => {
             try {
               await deleteProductoEvento(id);
-              Alert.alert('Éxito', 'Producto eliminado correctamente');
               loadProductos();
             } catch (error) {
-              console.error('Error al eliminar producto:', error);
               Alert.alert('Error', 'No se pudo eliminar el producto');
             }
           },
@@ -124,207 +147,66 @@ export default function ProductosScreen({ route }) {
     );
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={styles.iconContainer}>
-        <MaterialIcons name="shopping-bag" size={32} color="#fff" />
-      </View>
-
-      <View style={styles.info}>
-        <Text style={styles.nombre}>{item.nombre}</Text>
-        
-        {item.presentacion && (
-          <Text style={styles.presentacion}>{item.presentacion}</Text>
-        )}
-        
-        <Text style={styles.precio}>${item.precio.toFixed(2)}</Text>
-      </View>
-
-      <View style={styles.actions}>
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => handleEditProduct(item)}
-        >
-          <MaterialIcons name="edit" size={20} color="#222" />
-        </Pressable>
-        
-        <Pressable
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDeleteProduct(item.id)}
-        >
-          <MaterialIcons name="delete-outline" size={20} color="#fff" />
-        </Pressable>
-      </View>
-    </View>
-  );
-
-  if (!loading && productos.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Productos</Text>
-        
-        <View style={styles.emptyContainer}>
-          <MaterialIcons name="shopping-bag" size={64} color="#ccc" style={{ marginBottom: 20 }} />
-          <Text style={styles.emptyTitle}>Sin productos</Text>
-          <Text style={styles.emptyText}>Aún no hay productos agregados</Text>
-        </View>
-
-        <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-          <MaterialIcons name="add-circle" size={40} color="white" />
-          <Text style={styles.addButtonText}>Agregar producto</Text>
-        </TouchableOpacity>
-
-        {/* Modal */}
-        <Modal visible={showModal} animationType="slide" transparent={true}>
-          <View style={styles.modalOverlay}>
-            <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingId ? 'Editar producto' : 'Agregar producto'}
-                </Text>
-                <Pressable onPress={() => { setShowModal(false); resetForm(); }}>
-                  <MaterialIcons name="close" size={24} color="#222" />
-                </Pressable>
-              </View>
-
-              <Text style={styles.label}>Nombre del producto</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ingresa el nombre"
-                value={nombre}
-                onChangeText={setNombre}
-                placeholderTextColor="#999"
-                editable={!editingId}
-              />
-
-              <Text style={styles.label}>Categoría</Text>
-              <View style={styles.selectorContainer}>
-                <Pressable 
-                  style={[styles.selectorButton, categoria === 'bebida' && styles.selectorButtonActive]}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setCategoria('bebida');
-                  }}
-                >
-                  <Text style={[styles.selectorText, categoria === 'bebida' && styles.selectorTextActive]}>Bebida</Text>
-                  </Pressable>
-                  <Pressable 
-                    style={[styles.selectorButton, categoria === 'comida' && styles.selectorButtonActive]}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setCategoria('comida');
-                    }}
-                  >
-                    <Text style={[styles.selectorText, categoria === 'comida' && styles.selectorTextActive]}>Comida</Text>
-                  </Pressable>
-                  <Pressable 
-                    style={[styles.selectorButton, categoria === 'otro' && styles.selectorButtonActive]}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setCategoria('otro');
-                    }}
-                  >
-                    <Text style={[styles.selectorText, categoria === 'otro' && styles.selectorTextActive]}>Otro</Text>
-                  </Pressable>
-              </View>
-
-
-              <Text style={styles.label}>Presentación (Opcional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: 500ml, 1kg, Porción"
-                value={presentacion}
-                onChangeText={setPresentacion}
-                placeholderTextColor="#999"
-              />
-
-              <Text style={styles.label}>Precio</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ingresa el precio"
-                value={precio}
-                onChangeText={setPrecio}
-                placeholderTextColor="#999"
-                keyboardType="decimal-pad"
-              />
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => { setShowModal(false); resetForm(); }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.saveButton]}
-                  onPress={handleSaveProduct}
-                >
-                  <Text style={styles.saveButtonText}>Guardar</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </Modal>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Productos</Text>
-
-      <FlatList
-        data={productos}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      />
-
-      <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-        <MaterialIcons name="add-circle" size={40} color="white" />
-        <Text style={styles.addButtonText}>Agregar producto</Text>
-      </TouchableOpacity>
-
-      {/* Modal */}
-      <Modal visible={showModal} animationType="slide" transparent={true}>
+  const modalContent = (
+    <Modal visible={showModal} animationType="slide" transparent={true}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.modalOverlay}>
           <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+            
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingId ? 'Editar producto' : 'Agregar producto'}
-              </Text>
-              <Pressable onPress={() => { setShowModal(false); resetForm(); }}>
-                <MaterialIcons name="close" size={24} color="#222" />
+              <TextInput
+                style={styles.modalTitle}
+                editable={false}
+                value={editingId ? 'Editar producto' : 'Agregar producto'}
+              />
+              <Pressable onPress={() => { setShowModal(false); resetForm(); }}  style={{ padding:10 }}>
+                <IconoCerrar />
               </Pressable>
             </View>
 
-            <Text style={styles.label}>Nombre del producto</Text>
+            <TextInput style={styles.label} editable={false} value="Nombre del producto:" />
             <TextInput
               style={styles.input}
-              placeholder="Ingresa el nombre"
+              placeholder="Ingresá el nombre"
               value={nombre}
               onChangeText={setNombre}
               placeholderTextColor="#999"
               editable={!editingId}
             />
 
-            <Text style={styles.label}>Presentación (Opcional)</Text>
+            <TextInput style={styles.label} editable={false} value="Categoría:" />
+            <View style={styles.selectorContainer}>
+              {['bebida', 'comida', 'otro'].map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[styles.selectorButton, categoria === cat && styles.selectorButtonActive]}
+                  onPress={() => { Keyboard.dismiss(); setCategoria(cat); }}
+                >
+                  <TextInput
+                    style={{ fontSize: 16, color: categoria === cat ? '#fff' : '#000000', padding: 0, margin: 0 }}
+                    editable={false}
+                    value={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  />
+                </Pressable>
+              ))}
+            </View>
+
+            <TextInput style={styles.label} editable={false} value="Presentación (Opcional):" />
             <TextInput
               style={styles.input}
               placeholder="Ej: 500ml, 1kg, Porción"
               value={presentacion}
-              placeholderTextColor="#999"
               onChangeText={setPresentacion}
+              placeholderTextColor="#999"
             />
 
-            <Text style={styles.label}>Precio</Text>
+            <TextInput style={styles.label} editable={false} value="Precio:" />
             <TextInput
               style={styles.input}
-              placeholder="Ingresa el precio"
+              placeholder="Ingresá el precio"
               value={precio}
-              placeholderTextColor="#999"
               onChangeText={setPrecio}
+              placeholderTextColor="#999"
               keyboardType="decimal-pad"
             />
 
@@ -333,19 +215,66 @@ export default function ProductosScreen({ route }) {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => { setShowModal(false); resetForm(); }}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <TextInput style={styles.cancelButtonText} editable={false} value="Cancelar" />
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSaveProduct}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
+              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveProduct}>
+                <TextInput style={styles.saveButtonText} editable={false} value="Guardar" />
               </TouchableOpacity>
             </View>
+
           </ScrollView>
         </View>
-      </Modal>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.iconContainer}>
+        <IconoProducto categoria={item.categoria} />
+      </View>
+      <View style={styles.info}>
+        <TextInput style={styles.nombre} editable={false} value={item.nombre} />
+        {item.presentacion ? (
+          <TextInput style={styles.presentacion} editable={false} value={item.presentacion} />
+        ) : null}
+        <TextInput style={styles.precio} editable={false} value={`$${item.precio.toFixed(2)}`} />
+      </View>
+      <View style={styles.actions}>
+        <Pressable style={styles.actionButton} onPress={() => handleEditProduct(item)}>
+          <IconoEditar />
+        </Pressable>
+        <Pressable style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDeleteProduct(item.id)}>
+          <IconoEliminar />
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <TextInput style={styles.title} editable={false} value="Productos" />
+
+      {!loading && productos.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <TextInput style={styles.emptyTitle} editable={false} value="Sin productos" />
+          <TextInput style={styles.emptyText} editable={false} value="Aún no hay productos agregados" />
+        </View>
+      ) : (
+        <FlatList
+          data={productos}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 20 }}
+        />
+      )}
+
+      <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
+        <IconoAgregar />
+        <TextInput style={styles.addButtonText} editable={false} value="Agregar producto" />
+      </TouchableOpacity>
+
+      {modalContent}
     </View>
   );
 }
@@ -353,31 +282,32 @@ export default function ProductosScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
   },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 25,
+    marginTop: 25,
+    marginBottom: 15,
     textAlign: 'center',
-    color: '#111',
+    color: '#2D3436',
+    paddingHorizontal: 20,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f5f5f5',
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#54A0FF',
     marginBottom: 15,
   },
   iconContainer: {
-    width: 50,
-    height: 50,
+    width: 56,
+    height: 56,
     borderRadius: 12,
-    backgroundColor: '#222',
+    backgroundColor: '#0F3460',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -388,34 +318,27 @@ const styles = StyleSheet.create({
   nombre: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111',
-    marginBottom: 4,
+    color: '#2D3436',
+    padding: 0,
+    margin: 0,
+    height: 24,
   },
   presentacion: {
     fontSize: 13,
     color: '#999',
-    marginBottom: 4,
+    padding: 0,
+    margin: 0,
+    height: 20,
+    marginTop: 2,
   },
   precio: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#222',
-    marginBottom: 4,
-  },
-  tempBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ccc',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    gap: 4,
-  },
-  tempText: {
-    fontSize: 11,
-    color: '#fff',
-    fontWeight: '500',
+    color: '#0F3460',
+    padding: 0,
+    margin: 0,
+    height: 24,
+    marginTop: 4,
   },
   actions: {
     flexDirection: 'row',
@@ -423,8 +346,8 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   actionButton: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
@@ -433,8 +356,8 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   deleteButton: {
-    backgroundColor: '#222',
-    borderColor: '#222',
+    backgroundColor: '#0F3460',
+    borderColor: '#0F3460',
   },
   emptyContainer: {
     flex: 1,
@@ -446,7 +369,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: '#2D3436',
   },
   emptyText: {
     fontSize: 16,
@@ -455,10 +378,10 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 60,
     left: 20,
     right: 20,
-    backgroundColor: '#111',
+    backgroundColor: '#0F3460',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -470,57 +393,82 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    padding: 0,
+    margin: 0,
+    height: 26,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 30,
-    paddingTop: 20,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    padding: 40,
     paddingBottom: 40,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 25,
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111',
+    color: '#2D3436',
+    padding: 0,
+    margin: 0,
+    height: 32,
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#222',
-    marginTop: 15,
+    fontWeight: '500',
+    marginBottom: 5,
+    color: '#2D3436',
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     padding: 15,
     borderRadius: 8,
+    marginBottom: 15,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#111',
+    height: 50,
+    width: '100%',
+    backgroundColor: '#fff',
+  },
+  selectorContainer: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    gap: 10,
+  },
+  selectorButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f5f5f5',
+    height: 50,
+  },
+  selectorButtonActive: {
+    backgroundColor: '#0F3460',
+    borderColor: '#0F3460',
   },
   modalActions: {
     flexDirection: 'row',
     gap: 15,
-    marginTop: 30,
+    marginTop: 10,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 15,
+    height: 50,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: '#f0f0f0',
@@ -530,39 +478,20 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#666',
+    color: '#333',
+    padding: 0,
+    margin: 0,
+    height: 22,
   },
   saveButton: {
-    backgroundColor: '#222',
+    backgroundColor: '#0F3460',
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-  },
-  selectorContainer: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    gap: 10,
-  },
-  selectorButton: {
-    flex: 1,    
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  selectorButtonActive: {
-    backgroundColor: '#222',
-    borderColor: '#222',
-  },
-  selectorText: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-    color: '#666',
-  },
-  selectorTextActive: {
-    color: '#fff',
+    padding: 0,
+    margin: 0,
+    height: 22,
   },
 });

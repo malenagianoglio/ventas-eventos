@@ -109,14 +109,14 @@ export const insertProductoEvento = async ({ eventId, nombre, categoria, present
   );
 };
 
-export const updateProductoEvento = async ({ id, categoria, presentacion, precio }) => {
+export const updateProductoEvento = async ({ id, nombre, categoria, presentacion, precio }) => {
   if (!db) {
     await initDB();
   }
 
   await db.runAsync(
-    'UPDATE productos_evento SET categoria = ?, presentacion = ?, precio = ? WHERE id = ?',
-    [categoria, presentacion || null, precio, id]
+    'UPDATE productos_evento SET nombre = ?, categoria = ?, presentacion = ?, precio = ? WHERE id = ?',
+    [nombre, categoria, presentacion || null, precio, id]
   );
 };
 
