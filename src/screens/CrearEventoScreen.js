@@ -41,7 +41,6 @@ export default function CrearEventoScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}> 
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <TextInput style={styles.title} editable={false} value="Crear Evento"/>
 
       <TextInput style={styles.label} editable={false} value="Nombre del evento:"/>
@@ -112,7 +111,6 @@ export default function CrearEventoScreen({ navigation }) {
       <TouchableOpacity style={styles.button} onPress={handleCreateEvent}>
         <TextInput value="Crear Evento" editable={false} style={styles.buttonText}/>
       </TouchableOpacity>
-    </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -145,9 +143,8 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   container: {
-    padding: 20,
+    paddingHorizontal: 40,
     justifyContent: 'center',
-    flexGrow: 1,
     backgroundColor: '#F5F5F5',
   },
   title: {
@@ -155,6 +152,7 @@ const styles = StyleSheet.create({
     margin: 0,
     fontWeight: 'bold',
     color: '#2D3436',
+    textAlign: 'center',
   },
   label: {
     fontSize: 16,
@@ -209,5 +207,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    width: '100%',
+    textAlign: 'center',
   },
 });

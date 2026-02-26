@@ -269,10 +269,12 @@ export default function ProductosScreen({ route }) {
         />
       )}
 
-      <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-        <IconoAgregar />
-        <TextInput style={styles.addButtonText} editable={false} value="Agregar producto" />
-      </TouchableOpacity>
+      {!showModal && (
+        <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
+          <IconoAgregar />
+          <TextInput style={styles.addButtonText} editable={false} value="Agregar producto" />
+        </TouchableOpacity>
+      )}
 
       {modalContent}
     </View>
@@ -287,7 +289,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginTop: 25,
     marginBottom: 15,
     textAlign: 'center',
     color: '#2D3436',
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 20,
     left: 20,
     right: 20,
     backgroundColor: '#0F3460',
@@ -396,6 +397,8 @@ const styles = StyleSheet.create({
     padding: 0,
     margin: 0,
     height: 26,
+    width: 180,
+    textAlignt: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -420,7 +423,7 @@ const styles = StyleSheet.create({
     color: '#2D3436',
     padding: 0,
     margin: 0,
-    height: 32,
+    width: 300,
   },
   label: {
     fontSize: 16,
@@ -482,6 +485,8 @@ const styles = StyleSheet.create({
     padding: 0,
     margin: 0,
     height: 22,
+    width: 100,
+    textAlignt: 'center',
   },
   saveButton: {
     backgroundColor: '#0F3460',
@@ -493,5 +498,7 @@ const styles = StyleSheet.create({
     padding: 0,
     margin: 0,
     height: 22,
+    width: 100,
+    textAlignt: 'center',
   },
 });

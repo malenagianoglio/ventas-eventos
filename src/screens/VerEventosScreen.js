@@ -102,13 +102,13 @@ export default function VerEventosScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
     backgroundColor: '#F5F5F5',
   },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginTop: 25,
+    marginTop: 0,
     marginBottom: 15,
     textAlign: 'center',
     color: '#2D3436',

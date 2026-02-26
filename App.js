@@ -70,7 +70,7 @@ export default function App() {
         <Stack.Screen name="Ventas" component={VentasScreen} />
         <Stack.Screen name="Productos" component={ProductosScreen} />
         <Stack.Screen name="EventoHomeAlquilado" component={EventoHomeAlquiladoScreen} />
-        <Stack.Screen name="Configuración" component={ConfiguracionScreen} />
+        <Stack.Screen name="Configuracion" component={ConfiguracionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

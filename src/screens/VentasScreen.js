@@ -1,9 +1,9 @@
 import { View, StyleSheet, FlatList, Alert, TouchableOpacity, Pressable, Modal, ScrollView, TextInput } from 'react-native';
 import { useState, useCallback } from 'react';
-import { getProductosByEvento, initDB } from '../../database';
+import { getProductosByEvento, initDB, getEventById } from '../../database';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
-import EscPosPrinter from 'react-native-esc-pos-printer';
+import { printTicket } from '../utils/printer';
 
 const IconoCancelar = () => (
   <Svg height="20px" viewBox="0 -960 960 960" width="20px" fill="#555">
@@ -36,6 +36,7 @@ export default function VentasScreen({ route }) {
   const [ventaActiva, setVentaActiva] = useState(false);
   const [carrito, setCarrito] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [eventoNombre, setEventoNombre] = useState('');
 
   const PRIORIDAD_CATEGORIAS = {
     'bebida': 1,
@@ -47,6 +48,8 @@ export default function VentasScreen({ route }) {
     try {
       await initDB();
       const data = await getProductosByEvento(eventId);
+      const evento = await getEventById(eventId);
+      setEventoNombre(evento?.name || '');
 
       const productosOrdenados = data.sort((a, b) => {
       
@@ -96,46 +99,40 @@ export default function VentasScreen({ route }) {
   };
 
   const handleImprimir = async () => {
-  try {
-    // Obtener dispositivos Bluetooth emparejados
-    const devices = await EscPosPrinter.getBluetoothDeviceList();
+    try {
+      for (const item of carrito) {
+        for (let i = 0; i < item.cantidad; i++) {
+          await printTicket(
+            item.nombre, 
+            item.presentacion || '', 
+            item.precio.toFixed(2), 
+            eventoNombre || 'Evento'
+          );
 
-    if (!devices || devices.length === 0) {
-      Alert.alert('Error', 'No hay impresoras Bluetooth emparejadas');
-      return;
-    }
+          const esUltimoItem = carrito.indexOf(item) === carrito.length - 1;
+          const esUltimaUnidad = i === item.cantidad - 1;
 
-    // Usamos la primera impresora encontrada
-    const printer = devices[0];
-
-    await EscPosPrinter.connect(printer.address);
-
-    // 🔥 Imprimir un ticket por cada producto y cantidad
-    for (const item of carrito) {
-      for (let i = 0; i < item.cantidad; i++) {
-        await EscPosPrinter.printText("************************\n", {});
-        await EscPosPrinter.printText("      VENTA EVENTO\n", {});
-        await EscPosPrinter.printText("************************\n\n", {});
-
-        await EscPosPrinter.printText(`Producto: ${item.nombre}\n`, {});
-        await EscPosPrinter.printText(`Precio: $${item.precio.toFixed(2)}\n\n`, {});
-
-        await EscPosPrinter.printText("Gracias por su compra\n\n\n\n", {});
+          if (!(esUltimoItem && esUltimaUnidad)) {
+            await new Promise((resolve) => {
+              Alert.alert(
+                "Ticket Impreso",
+                `Presioná OK para imprimir el siguiente.`,
+                [{ text: "OK", onPress: () => resolve() }],
+                { cancelable: false }
+              );
+            });
+          }
+        }
       }
+
+      Alert.alert('Venta completada', `Se imprimieron todos los tickets. Total: $${total.toFixed(2)}`);
+      setCarrito([]);
+      setVentaActiva(false);
+      setShowModal(false);
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo imprimir. ¿Está conectada la impresora?');
     }
-
-    await EscPosPrinter.disconnect();
-
-    Alert.alert('Venta confirmada e impresa');
-    setCarrito([]);
-    setVentaActiva(false);
-    setShowModal(false);
-
-  } catch (error) {
-    console.log(error);
-    Alert.alert('Error al imprimir', error.message);
-  }
-};
+  };
 
   const renderProducto = ({ item }) => {
   const enCarrito = carrito.find(p => p.id === item.id);
@@ -272,17 +269,16 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     backgroundColor: '#F5F5F5',
-    paddingTop: 20,
   },
   leftColumn: {
-    flex: 6.5,
+    flex: 6.2,
     backgroundColor: '#F5F5F5',
   },
   rightColumn: {
     flex: 3,
     backgroundColor: '#fff',
-    padding: 15,
-    paddingBottom: 70,
+    padding: 10,
+    paddingBottom: 20,
     borderLeftWidth: 1,
     borderLeftColor: '#e0e0e0',
   },
@@ -459,7 +455,6 @@ cartItemPrice: {
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -468,14 +463,16 @@ cartItemPrice: {
     gap: 6,
     borderWidth: 1,
     borderColor: '#ddd',
-  },
+    backgroundColor: '#f0f0f0',
+    overflow: 'visible',
+},
   cancelButtonText: {
     color: '#555',
     fontWeight: '700',
     fontSize: 14,
     padding: 0,
     margin: 0,
-    height: 20,
+    minWidth: 70,
   },
   confirmButton: {
     flex: 1,
@@ -486,6 +483,7 @@ cartItemPrice: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
+    overflow: 'visible',
   },
   confirmButtonText: {
     color: '#fff',
@@ -493,7 +491,6 @@ cartItemPrice: {
     fontSize: 14,
     padding: 0,
     margin: 0,
-    height: 20,
   },
   emptyContainer: {
     flex: 1,
@@ -602,7 +599,9 @@ cartItemPrice: {
     fontSize: 16,
     padding: 0,
     margin: 0,
-    height: 22,
+    textAlign: 'center',
+    height: 24,
+    width: 180,
   },
   modalCancelButton: {
     backgroundColor: '#f0f0f0',

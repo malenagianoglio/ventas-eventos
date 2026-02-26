@@ -2,9 +2,6 @@ import * as SQLite from 'expo-sqlite';
 
 let db = null;
 
-// Use the modern expo-sqlite async API. `openDatabaseAsync` is provided by
-// the library and returns a database object that already implements
-// `runAsync` / `getAllAsync`, so forward to it directly.
 const openDatabaseAsync = (name) => {
   return SQLite.openDatabaseAsync(name);
 };
@@ -15,7 +12,6 @@ export const initDB = async () => {
   try {
     db = await openDatabaseAsync('ventas.db');
 
-    // Crear tabla de eventos
     await db.runAsync(`
       CREATE TABLE IF NOT EXISTS events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +22,6 @@ export const initDB = async () => {
       )
     `);
 
-    // Crear tabla de productos por evento
     await db.runAsync(`
       CREATE TABLE IF NOT EXISTS productos_evento (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,14 +34,27 @@ export const initDB = async () => {
       )
     `);
 
-    // Crear tabla de ventas
     await db.runAsync(`
-      CREATE TABLE IF NOT EXISTS sales (
+      CREATE TABLE IF NOT EXISTS ventas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL,
-        total REAL NOT NULL
+        eventId INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        total REAL NOT NULL,
+        estado TEXT NOT NULL DEFAULT 'confirmada',
+        FOREIGN KEY (eventId) REFERENCES events(id)
+      )
+    `);
+
+    await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS productos_venta (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ventaId INTEGER NOT NULL,
+        productoId INTEGER NOT NULL,
+        cantidad INTEGER NOT NULL,
+        precio REAL NOT NULL,
+        subtotal REAL NOT NULL,
+        FOREIGN KEY (ventaId) REFERENCES ventas(id),
+        FOREIGN KEY (productoId) REFERENCES productos_evento(id)
       )
     `);
 
@@ -79,6 +87,17 @@ export const getEvents = async () => {
   );
 
   return events;
+};
+
+export const getEventById = async (id) => {
+  if (!db) {
+    await initDB();
+  }
+  const events = await db.getAllAsync(
+    'SELECT * FROM events WHERE id = ?',
+    [id]
+  );
+  return events.length > 0 ? events[0] : null;
 };
 
 // ============================================
@@ -143,5 +162,19 @@ export const getEventByAccessCode = async (accessCode) => {
 
   return events.length > 0 ? events[0] : null;
 };
+
+export const insertVenta = async (eventId, date, total, estado) => {
+  if (!db) {
+    await initDB();
+  }
+
+  const result = await db.runAsync(
+    'INSERT INTO ventas (eventId, date, total, estado) VALUES (?, ?, ?)',
+    [eventId, date, total]
+  );
+
+  return result.insertId;
+};
+
 
 
