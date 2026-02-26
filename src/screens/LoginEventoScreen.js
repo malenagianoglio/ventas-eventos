@@ -1,8 +1,10 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { getEventByAccessCode } from '../../database';
+import { useNavigation } from '@react-navigation/native';
 
 export default function LoginEventoScreen() {
+  const navigation = useNavigation();
   const [accessCode, setAccessCode] = useState('');
 
   const handleLogin = async( ) => {
@@ -15,6 +17,7 @@ export default function LoginEventoScreen() {
       const event = await getEventByAccessCode(accessCode);
       if (event) {
         Alert.alert('Bienvenido', `Has ingresado al evento: ${event.name}`);
+        navigation.navigate('EventoHome', { eventId: event.id });
       } else {
         Alert.alert('Error', 'Código de acceso incorrecto');
       }

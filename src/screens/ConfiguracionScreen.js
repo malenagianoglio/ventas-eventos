@@ -16,6 +16,13 @@ const IconoBluetooth = () => (
   </Svg>
 );
 
+const IconoEvento = () => (
+  <Svg height="40px" viewBox="0 -960 960 960" width="40px" fill="#fff">
+    <Path d="M438-226 296-368l58-58 84 84 168-168 58 58-226 226ZM200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm0 0v-80 80Z"/>
+  </Svg>
+);
+
+
 export default function ConfiguracionScreen() {
   const navigation = useNavigation();
 
@@ -71,6 +78,11 @@ export default function ConfiguracionScreen() {
       <Pressable style={[styles.button, styles.buttonPrinter]} onPress={handleSelectPrinter}>
         <IconoImpresora />
         <TextInput style={styles.buttonText} editable={false} value="Conectar Impresora" />
+      </Pressable>
+
+      <Pressable style={styles.button}>
+        <IconoEvento />
+        <TextInput style={styles.buttonText} editable={false} value="Editar Evento" />
       </Pressable>
 
       <Modal visible={showPrinterModal} transparent animationType="slide">
@@ -147,6 +159,8 @@ const styles = StyleSheet.create({
     padding: 0,
     margin: 0,
     height: 20,
+    width: 150,
+    textAlign: 'center',
   },
   button: {
     width: '90%',

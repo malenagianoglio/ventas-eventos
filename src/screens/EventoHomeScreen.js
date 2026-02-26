@@ -58,7 +58,7 @@ export default function EventoHomeScreen({ route }) {
 
       <Pressable
         style={[styles.button, { backgroundColor: '#175094' }]} 
-        onPress={() => navigation.navigate('Configuración', { eventId })}
+        onPress={() => navigation.navigate('Configuracion', { eventId })}
       >
         <IconoConfiguracion style={styles.icon} />
         <TextInput style={styles.text} value="Configuración" editable={false} />

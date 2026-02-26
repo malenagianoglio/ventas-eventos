@@ -1,9 +1,15 @@
 import { View, StyleSheet, FlatList, Alert, TouchableOpacity, Pressable, Modal, ScrollView, TextInput } from 'react-native';
-import { useState, useCallback } from 'react';
-import { getProductosByEvento, initDB, getEventById } from '../../database';
+import { useState, useCallback, useMemo } from 'react';
+import { getProductosByEvento, initDB, getEventById , insertVenta } from '../../database';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { printTicket } from '../utils/printer';
+
+const PRIORIDAD_CATEGORIAS = {
+  'bebida': 1,
+  'comida': 2,
+  'otro': 3
+};
 
 const IconoCancelar = () => (
   <Svg height="20px" viewBox="0 -960 960 960" width="20px" fill="#555">
@@ -29,8 +35,46 @@ const IconoMas = () => (
   </Svg>
 );
 
+const ProductoCard = ({ item, cantidad, ventaActiva, onAgregar }) => (
+  <Pressable
+    style={[styles.productCard, !ventaActiva && styles.productCardDisabled]}
+    disabled={!ventaActiva}
+    onPress={() => onAgregar(item)}
+  >
+    {cantidad > 0 && (
+      <View style={styles.badgeCantidad}>
+        <TextInput style={styles.badgeCantidadText} editable={false} value={`x${cantidad}`} />
+      </View>
+    )}
+    <View style={styles.productCardInfo}>
+      <TextInput style={styles.productName} editable={false} value={item.nombre} />
+      {item.presentacion ? (
+        <TextInput style={styles.productPresentation} editable={false} value={item.presentacion} />
+      ) : null}
+      <TextInput style={styles.productPrice} editable={false} value={`$${item.precio.toFixed(2)}`} />
+    </View>
+  </Pressable>
+);
+
+const CartItem = ({ item, onAgregar, onDisminuir }) => (
+  <View style={styles.cartItem}>
+    <TextInput style={styles.cartItemName} editable={false} value={item.nombre} />
+    <View style={styles.cartControls}>
+      <TouchableOpacity style={styles.controlBtn} onPress={() => onDisminuir(item.id)}>
+        <IconoMenos />
+      </TouchableOpacity>
+      <TextInput style={styles.cartItemQuantity} editable={false} value={item.cantidad.toString()} />
+      <TouchableOpacity style={styles.controlBtn} onPress={() => onAgregar(item)}>
+        <IconoMas />
+      </TouchableOpacity>
+    </View>
+    <TextInput style={styles.cartItemPrice} editable={false} value={`$${(item.precio * item.cantidad).toFixed(2)}`} />
+  </View>
+);
+
 export default function VentasScreen({ route }) {
   const { eventId } = route.params;
+
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ventaActiva, setVentaActiva] = useState(false);
@@ -38,32 +82,24 @@ export default function VentasScreen({ route }) {
   const [showModal, setShowModal] = useState(false);
   const [eventoNombre, setEventoNombre] = useState('');
 
-  const PRIORIDAD_CATEGORIAS = {
-    'bebida': 1,
-    'comida': 2,
-    'otro': 3
-  };
-
   const loadProductos = async () => {
     try {
       await initDB();
-      const data = await getProductosByEvento(eventId);
-      const evento = await getEventById(eventId);
-      setEventoNombre(evento?.name || '');
+      const [data, evento] = await Promise.all([
+        getProductosByEvento(eventId),
+        getEventById(eventId)
+      ]);
 
-      const productosOrdenados = data.sort((a, b) => {
-      
-      const ordenA = PRIORIDAD_CATEGORIAS[a.categoria] || 99;
-      const ordenB = PRIORIDAD_CATEGORIAS[b.categoria] || 99;
+      setEventoNombre(evento?.name ?? '');
+      setProductos(
+        [...data].sort((a, b) => {
+          const diff =
+          (PRIORIDAD_CATEGORIAS[a.categoria] ?? 99) - 
+          (PRIORIDAD_CATEGORIAS[b.categoria] ?? 99);
+          return diff !== 0 ? diff : a.nombre.localeCompare(b.nombre);
+        })
+      );
 
-      if (ordenA !== ordenB) {
-        return ordenA - ordenB;
-      }
-      
-      return a.nombre.localeCompare(b.nombre);
-    });
-
-    setProductos(productosOrdenados);
     } catch (error) {
       Alert.alert('Error', 'No se pudieron cargar los productos');
     } finally {
@@ -77,21 +113,28 @@ export default function VentasScreen({ route }) {
   const cancelarVenta = () => { setCarrito([]); setVentaActiva(false); };
 
   const agregarAlCarrito = (producto) => {
-    setCarrito(prev => {
-      const existe = prev.find(p => p.id === producto.id);
-      if (existe) return prev.map(p => p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p);
+    setCarrito((prev) => {
+      const existe = prev.find((p) => p.id === producto.id);
+      if (existe) {
+        return prev.map(p => p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p
+          );
+      }
       return [...prev, { ...producto, cantidad: 1 }];
     });
   };
 
   const disminuirCantidad = (id) => {
     setCarrito(prev =>
-      prev.map(item => item.id === id ? { ...item, cantidad: item.cantidad - 1 } : item)
+      prev
+          .map(item => item.id === id ? { ...item, cantidad: item.cantidad - 1 } : item)
           .filter(item => item.cantidad > 0)
     );
   };
 
-  const total = carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
+  const total = useMemo(
+    () => carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0),
+    [carrito]
+  );
 
   const handleConfirmar = () => {
     if (carrito.length === 0) { Alert.alert('Carrito vacío'); return; }
@@ -100,32 +143,36 @@ export default function VentasScreen({ route }) {
 
   const handleImprimir = async () => {
     try {
-      for (const item of carrito) {
-        for (let i = 0; i < item.cantidad; i++) {
-          await printTicket(
-            item.nombre, 
-            item.presentacion || '', 
-            item.precio.toFixed(2), 
-            eventoNombre || 'Evento'
+
+      await insertVenta(eventId, total, carrito);
+
+      const tickets = carrito.flatMap((item) =>
+        Array.from({ length: item.cantidad }, (_, i) => ({ item, unidad: i + 1 }))
+      );
+
+      for (let i = 0; i < tickets.length; i++) {
+        const { item } = tickets[i];
+        await printTicket(
+          item.nombre,
+          item.presentacion ?? '',
+          item.precio.toFixed(2),
+          eventoNombre || 'Evento'
+        );
+
+        const esElUltimo = i === tickets.length - 1;
+        if (!esElUltimo) {
+          await new Promise((resolve) =>
+            Alert.alert(
+              'Ticket impreso',
+              'Presioná OK para imprimir el siguiente.',
+              [{ text: 'OK', onPress: resolve }],
+              { cancelable: false }
+            )
           );
-
-          const esUltimoItem = carrito.indexOf(item) === carrito.length - 1;
-          const esUltimaUnidad = i === item.cantidad - 1;
-
-          if (!(esUltimoItem && esUltimaUnidad)) {
-            await new Promise((resolve) => {
-              Alert.alert(
-                "Ticket Impreso",
-                `Presioná OK para imprimir el siguiente.`,
-                [{ text: "OK", onPress: () => resolve() }],
-                { cancelable: false }
-              );
-            });
-          }
         }
       }
 
-      Alert.alert('Venta completada', `Se imprimieron todos los tickets. Total: $${total.toFixed(2)}`);
+      Alert.alert('Venta completada', `Total: $${total.toFixed(2)}`);
       setCarrito([]);
       setVentaActiva(false);
       setShowModal(false);
@@ -137,22 +184,12 @@ export default function VentasScreen({ route }) {
   const renderProducto = ({ item }) => {
   const enCarrito = carrito.find(p => p.id === item.id);
   return (
-    <Pressable
-      style={[styles.productCard, { opacity: ventaActiva ? 1 : 0.5 }]}
-      disabled={!ventaActiva}
-      onPress={() => agregarAlCarrito(item)}
-    >
-      {enCarrito ? (
-        <View style={styles.badgeCantidad}>
-          <TextInput style={styles.badgeCantidadText} editable={false} value={`x${enCarrito.cantidad}`} />
-        </View>
-      ) : null}
-      <View style={styles.productCardInfo}>
-        <TextInput style={styles.productName} editable={false} value={item.nombre} />
-        {item.presentacion ? <TextInput style={styles.productPresentation} editable={false} value={item.presentacion} /> : null}
-        <TextInput style={styles.productPrice} editable={false} value={`$${item.precio.toFixed(2)}`} />
-      </View>
-    </Pressable>
+    <ProductoCard
+        item={item}
+        cantidad={enCarrito?.cantidad ?? 0}
+        ventaActiva={ventaActiva}
+        onAgregar={agregarAlCarrito}
+    />
   );
 };
 
@@ -196,19 +233,11 @@ export default function VentasScreen({ route }) {
               keyExtractor={(item) => item.id.toString()}
               style={{ flex: 1 }}
               renderItem={({ item }) => (
-                <View style={styles.cartItem}>
-                  <TextInput style={styles.cartItemName} editable={false} value={item.nombre} />
-                  <View style={styles.cartControls}>
-                    <TouchableOpacity style={styles.controlBtn} onPress={() => disminuirCantidad(item.id)}>
-                      <IconoMenos style={styles.iconoMenos} />
-                    </TouchableOpacity>
-                    <TextInput style={styles.cartItemQuantity} editable={false} value={item.cantidad.toString()} />
-                    <TouchableOpacity style={styles.controlBtn} onPress={() => agregarAlCarrito(item)}>
-                      <IconoMas style={styles.iconoMas} />
-                    </TouchableOpacity>
-                  </View>
-                  <TextInput style={styles.cartItemPrice} editable={false} value={`$${(item.precio * item.cantidad).toFixed(2)}`} />
-                </View>
+                <CartItem
+                  item={item}
+                  onAgregar={agregarAlCarrito}
+                  onDisminuir={disminuirCantidad}
+                />
               )}
               ListEmptyComponent={
                 <View style={styles.carritoVacio}>
@@ -302,6 +331,9 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     gap: 10,
     position: 'relative',
+  },
+  productCardDisabled: {
+    opacity: 0.5,
   },
   badgeCantidad: {
     position: 'absolute',
@@ -496,20 +528,18 @@ cartItemPrice: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
   },
   emptyTitle: {
     fontSize: 22,
     fontWeight: '800',
     color: '#2D3436',
     padding: 0,
-    height: 30,
+    paddingBottom: 10,
   },
   emptyText: {
     fontSize: 15,
     color: '#999',
     padding: 0,
-    height: 22,
   },
   modalOverlay: {
     flex: 1,

@@ -364,13 +364,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 30,
+    paddingBottom: 100,
   },
   emptyTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 10,
     color: '#2D3436',
+    padding: 0,
   },
   emptyText: {
     fontSize: 16,
