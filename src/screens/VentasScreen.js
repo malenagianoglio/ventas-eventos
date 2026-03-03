@@ -1,39 +1,19 @@
 import { View, StyleSheet, FlatList, Alert, TouchableOpacity, Pressable, Modal, ScrollView, TextInput } from 'react-native';
-import { useState, useCallback, useMemo } from 'react';
-import { getProductosByEvento, initDB, getEventById , insertVenta } from '../../database';
-import { useFocusEffect } from '@react-navigation/native';
-import Svg, { Path } from 'react-native-svg';
+import { useState, useMemo } from 'react';
+import { insertVenta } from '../../database';
 import { printTicket } from '../utils/printer';
+import { colors } from '../theme/colors';
+import { IconoMas, IconoMenos, IconoCancelar, IconoConfirmar } from '../components/Icons';
+import { useProductos } from '../hooks/useProductos';
+import { useEventoNombre } from '../hooks/useEventoNombre';
+import { usePrinter } from '../context/PrinterContext';
+import { useAppToast } from '../hooks/useAppToast';
 
 const PRIORIDAD_CATEGORIAS = {
   'bebida': 1,
   'comida': 2,
   'otro': 3
 };
-
-const IconoCancelar = () => (
-  <Svg height="20px" viewBox="0 -960 960 960" width="20px" fill="#555">
-    <Path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/>
-  </Svg>
-);
-
-const IconoConfirmar = () => (
-  <Svg height="20px" viewBox="0 -960 960 960" width="20px" fill="#fff">
-    <Path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/>
-  </Svg>
-);
-
-const IconoMenos = () => (
-  <Svg height="18px" viewBox="0 -960 960 960" width="18px" fill="#E94560">
-    <Path d="M200-440v-80h560v80H200Z"/>
-  </Svg>
-);
-
-const IconoMas = () => (
-  <Svg height="18px" viewBox="0 -960 960 960" width="18px" fill="#1DD1A1">
-    <Path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/>
-  </Svg>
-);
 
 const ProductoCard = ({ item, cantidad, ventaActiva, onAgregar }) => (
   <Pressable
@@ -75,39 +55,20 @@ const CartItem = ({ item, onAgregar, onDisminuir }) => (
 export default function VentasScreen({ route }) {
   const { eventId } = route.params;
 
-  const [productos, setProductos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { productos, loading, refresh } = useProductos(eventId);
+  const eventoNombre = useEventoNombre(eventId);
+  const { connectedPrinter } = usePrinter();
+  const toast = useAppToast();
   const [ventaActiva, setVentaActiva] = useState(false);
   const [carrito, setCarrito] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [eventoNombre, setEventoNombre] = useState('');
 
-  const loadProductos = async () => {
-    try {
-      await initDB();
-      const [data, evento] = await Promise.all([
-        getProductosByEvento(eventId),
-        getEventById(eventId)
-      ]);
-
-      setEventoNombre(evento?.name ?? '');
-      setProductos(
-        [...data].sort((a, b) => {
-          const diff =
-          (PRIORIDAD_CATEGORIAS[a.categoria] ?? 99) - 
-          (PRIORIDAD_CATEGORIAS[b.categoria] ?? 99);
-          return diff !== 0 ? diff : a.nombre.localeCompare(b.nombre);
-        })
-      );
-
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar los productos');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(useCallback(() => { loadProductos(); }, [eventId]));
+  const productosordenados = useMemo(() => 
+    [...productos].sort((a, b) => {
+      const diff = (PRIORIDAD_CATEGORIAS[a.categoria] ?? 99) - (PRIORIDAD_CATEGORIAS[b.categoria] ?? 99);
+      return diff !== 0 ? diff : a.nombre.localeCompare(b.nombre);
+    }), [productos]
+  );
 
   const iniciarVenta = () => { setCarrito([]); setVentaActiva(true); };
   const cancelarVenta = () => { setCarrito([]); setVentaActiva(false); };
@@ -116,8 +77,7 @@ export default function VentasScreen({ route }) {
     setCarrito((prev) => {
       const existe = prev.find((p) => p.id === producto.id);
       if (existe) {
-        return prev.map(p => p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p
-          );
+        return prev.map(p => p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p );
       }
       return [...prev, { ...producto, cantidad: 1 }];
     });
@@ -137,11 +97,19 @@ export default function VentasScreen({ route }) {
   );
 
   const handleConfirmar = () => {
-    if (carrito.length === 0) { Alert.alert('Carrito vacío'); return; }
+    if (carrito.length === 0) { 
+      toast.warning('Carrito vacío');
+      return; 
+    }
     setShowModal(true);
   };
 
   const handleImprimir = async () => {
+    if (!connectedPrinter) {
+      toast.error('Conectá una impresora antes de confirmar la venta');
+      return;
+    }
+
     try {
 
       await insertVenta(eventId, total, carrito);
@@ -161,23 +129,17 @@ export default function VentasScreen({ route }) {
 
         const esElUltimo = i === tickets.length - 1;
         if (!esElUltimo) {
-          await new Promise((resolve) =>
-            Alert.alert(
-              'Ticket impreso',
-              'Presioná OK para imprimir el siguiente.',
-              [{ text: 'OK', onPress: resolve }],
-              { cancelable: false }
-            )
-          );
+          toast.info('Ticket impreso. Presioná para continuar.');
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         }
       }
 
-      Alert.alert('Venta completada', `Total: $${total.toFixed(2)}`);
+      toast.success(`Venta completada. Total: $${total.toFixed(2)}`);
       setCarrito([]);
       setVentaActiva(false);
       setShowModal(false);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo imprimir. ¿Está conectada la impresora?');
+      toast.error('No se pudo imprimir. ¿Está conectada la impresora?');
     }
   };
 
@@ -207,7 +169,7 @@ export default function VentasScreen({ route }) {
       {/* IZQUIERDA */}
       <View style={styles.leftColumn}>
         <FlatList
-          data={productos}
+          data={productosordenados}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderProducto}
           numColumns={3}
@@ -297,25 +259,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
   },
   leftColumn: {
     flex: 6.2,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
   },
   rightColumn: {
     flex: 3,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     padding: 10,
     paddingBottom: 20,
     borderLeftWidth: 1,
-    borderLeftColor: '#e0e0e0',
+    borderLeftColor: colors.border,
   },
   panelTitle: {
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 20,
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     margin: 0,
     height: 30,
@@ -326,9 +288,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.cardBackground,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     gap: 10,
     position: 'relative',
   },
@@ -339,7 +301,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: '#E94560',
+    backgroundColor: colors.danger,
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -361,13 +323,13 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     margin: 0,
   },
   productPresentation: {
     fontSize: 18,
-    color: '#999',
+    color: colors.textSecondary,
     padding: 0,
     margin: 0,
     marginTop: 4,
@@ -375,19 +337,19 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F3460',
+    color: colors.primary,
     marginTop: 4,
     padding: 0,
     margin: 0,
   },
   startButton: {
-    backgroundColor: '#222',
+    backgroundColor: colors.button,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   startButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
     padding: 0,
@@ -398,7 +360,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     marginTop: 0,
     height: 26,
@@ -409,13 +371,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 6,
     borderBottomWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: colors.border,
   },
   cartItemName: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     margin: 0,
 },
@@ -424,7 +386,7 @@ cartItemPrice: {
     textAlign: 'right',
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F3460',
+    color: colors.primary,
     padding: 0,
     margin: 0,
 },
@@ -438,18 +400,18 @@ cartItemPrice: {
     width: 35,
     height: 35,
     borderRadius: 6,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.cardBackground,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
 },
   cartItemQuantity: {
     width: 20,
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '700',
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     margin: 0,
     height: 22,
@@ -459,7 +421,7 @@ cartItemPrice: {
     alignItems: 'center',
   },
   carritoVacioText: {
-    color: '#bbb',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
     padding: 0,
@@ -473,11 +435,11 @@ cartItemPrice: {
     marginBottom: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.cardBackground,
     borderRadius: 10,
-    color: '#2D3436',
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     textAlign: 'center',
     height: 48,
   },
@@ -494,12 +456,12 @@ cartItemPrice: {
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#f0f0f0',
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
     overflow: 'visible',
 },
   cancelButtonText: {
-    color: '#555',
+    color: colors.textMuted,
     fontWeight: '700',
     fontSize: 14,
     padding: 0,
@@ -508,7 +470,7 @@ cartItemPrice: {
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#0F3460',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -518,7 +480,7 @@ cartItemPrice: {
     overflow: 'visible',
   },
   confirmButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '700',
     fontSize: 14,
     padding: 0,
@@ -532,13 +494,13 @@ cartItemPrice: {
   emptyTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     paddingBottom: 10,
   },
   emptyText: {
     fontSize: 15,
-    color: '#999',
+    color: colors.textMuted,
     padding: 0,
   },
   modalOverlay: {
@@ -548,7 +510,7 @@ cartItemPrice: {
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 20,
     padding: 30,
     width: '60%',
@@ -558,7 +520,7 @@ cartItemPrice: {
   modalTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#2D3436',
+    color: colors.textPrimary,
     marginBottom: 20,
     textAlign: 'center',
     padding: 0,
@@ -570,11 +532,11 @@ cartItemPrice: {
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: colors.border,
   },
   modalItemName: {
     fontSize: 14,
-    color: '#333',
+    color: colors.textPrimary,
     fontWeight: '500',
     flex: 1,
     padding: 0,
@@ -584,14 +546,14 @@ cartItemPrice: {
   modalItemPrice: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F3460',
+    color: colors.textPrimary,
     padding: 0,
     margin: 0,
     height: 20,
   },
   modalDivider: {
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: colors.border,
     marginVertical: 15,
   },
   modalTotalRow: {
@@ -603,7 +565,7 @@ cartItemPrice: {
   modalTotalLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#555',
+    color: colors.textMuted,
     padding: 0,
     margin: 0,
     height: 22,
@@ -611,20 +573,20 @@ cartItemPrice: {
   modalTotalAmount: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#2D3436',
+    color: colors.textPrimary,
     padding: 0,
     margin: 0,
     height: 36,
   },
   printButton: {
-    backgroundColor: '#0F3460',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginBottom: 10,
   },
   printText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '700',
     fontSize: 16,
     padding: 0,
@@ -634,15 +596,15 @@ cartItemPrice: {
     width: 180,
   },
   modalCancelButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.cardBackground,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
   },
   modalCancelText: {
-    color: '#555',
+    color: colors.textMuted,
     fontWeight: '700',
     fontSize: 15,
     padding: 0,

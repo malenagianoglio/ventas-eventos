@@ -1,6 +1,13 @@
 import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
-const { PrinterModule } = NativeModules;
+// Obtener el módulo nativo de impresora - puede ser PrinterModule o RNEscPosPrinter
+const PrinterModule = NativeModules.PrinterModule || NativeModules.RNEscPosPrinter || NativeModules.RnEscPosPrinter;
+
+const validateModuleAvailable = () => {
+  if (!PrinterModule || !PrinterModule.getPairedDevices) {
+    throw new Error('PrinterModule no está disponible en la plataforma nativa. Asegúrate de que el módulo nativo está correctamente vinculado.');
+  }
+};
 
 export const requestBluetoothPermission = async () => {
   if (Platform.OS !== 'android') return true;
@@ -16,7 +23,22 @@ export const requestBluetoothPermission = async () => {
   );
 };
 
-export const getPairedDevices = () => PrinterModule.getPairedDevices();
-export const connectPrinter = (address) => PrinterModule.connect(address);
-export const printTicket = (productName, presentation, price, eventName) => PrinterModule.printTicket(productName, presentation, price, eventName);
-export const disconnectPrinter = () => PrinterModule.disconnect();
+export const getPairedDevices = async () => {
+  validateModuleAvailable();
+  return await PrinterModule.getPairedDevices();
+};
+
+export const connectPrinter = async (address) => {
+  validateModuleAvailable();
+  return await PrinterModule.connect(address);
+};
+
+export const printTicket = async (productName, presentation, price, eventName) => {
+  validateModuleAvailable();
+  return await PrinterModule.printTicket(productName, presentation, price, eventName);
+};
+
+export const disconnectPrinter = async () => {
+  validateModuleAvailable();
+  return await PrinterModule.disconnect();
+};

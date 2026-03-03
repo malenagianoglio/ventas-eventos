@@ -1,30 +1,39 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
+import { useAppToast } from '../hooks/useAppToast';
+
+const CREDENCIALES = { user: 'club123', password: '1234' };
 
 export default function LoginClubScreen({ navigation }) {
-  const [user, setUser] = useState('');
+  const { loginClub } = useAuth();
+  const toast = useAppToast();
+  const [user, setUser]         = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    if (user === 'club123' && password === '1234') {
+    if (user === CREDENCIALES.user && password === CREDENCIALES.password) {
+      loginClub();
       navigation.navigate('ClubPanel');
     } else {
-      Alert.alert('Error', 'Usuario o contraseña incorrectos');
+      toast.error('Usuario o contraseña incorrectos');
     }
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
       <TextInput style={styles.title} value="Ingreso Club" editable={false} />
-
       <TextInput
         placeholder="Usuario"
         style={styles.input}
         value={user}
         onChangeText={setUser}
+        autoCapitalize="none"
       />
-
       <TextInput
         placeholder="Contraseña"
         style={styles.input}
@@ -32,11 +41,9 @@ export default function LoginClubScreen({ navigation }) {
         value={password}
         onChangeText={setPassword}
       />
-
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <TextInput value="Ingresar" editable={false} style={{...styles.buttonText, height: 40}} />
+        <TextInput style={styles.buttonText} value="Ingresar" editable={false} />
       </TouchableOpacity>
-    </View>
     </KeyboardAvoidingView>
   );
 }
@@ -46,36 +53,42 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 30,
     fontWeight: 'bold',
-    marginBottom: 30,
     textAlign: 'center',
-    color: '#2D3436',
+    color: colors.textPrimary,
+    padding: 0,
+    margin: 0,
+    marginBottom: 30,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,
     width: '90%',
     alignSelf: 'center',
+    backgroundColor: colors.white,
   },
   button: {
-    backgroundColor: '#0F3460',
-    padding: 6,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
     borderRadius: 8,
     width: '90%',
     alignSelf: 'center',
+    alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     textAlign: 'center',
     fontSize: 16,
-    margin: 0,
+    fontWeight: '700',
     padding: 0,
+    margin: 0,
+    height: 22,
   },
 });

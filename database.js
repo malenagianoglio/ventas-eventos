@@ -92,6 +92,14 @@ export const getEventByAccessCode = async (accessCode) => {
   return db.getFirstAsync('SELECT * FROM events WHERE access_code = ?', [accessCode]);
 };
 
+export const updateEvent = async ({ id, name, date, type, access_code }) => {
+  const db = await getDB();
+  await db.runAsync(
+    'UPDATE events SET name = ?, date = ?, type = ?, access_code = ? WHERE id = ?',
+    [name, date ?? '', type, access_code ?? null, id]
+  );
+};
+
 // ─── Productos ────────────────────────────────────────────────────────────────
 
 export const getProductosByEvento = async (eventId) => {
@@ -130,8 +138,6 @@ export const insertVenta = async (eventId, total, itemsCarrito) => {
   const db = await getDB();
   const date = new Date().toISOString();
 
-  // Usamos una transacción para garantizar atomicidad:
-  // si falla cualquier INSERT de productos_venta, la venta entera se revierte.
   await db.withTransactionAsync(async () => {
     const { lastInsertRowId: ventaId } = await db.runAsync(
       'INSERT INTO ventas (eventId, date, total, estado) VALUES (?, ?, ?, ?)',
@@ -149,7 +155,6 @@ export const insertVenta = async (eventId, total, itemsCarrito) => {
 
 export const deleteVenta = async (ventaId) => {
   const db = await getDB();
-  // productos_venta se borra en cascada por el ON DELETE CASCADE
   await db.runAsync('DELETE FROM ventas WHERE id = ?', [ventaId]);
 };
 
@@ -161,7 +166,6 @@ export const getVentasByEvento = async (eventId) => {
   );
 };
 
-// Métricas globales del evento: total recaudado, cantidad de ventas, ticket promedio
 export const getResumenEvento = async (eventId) => {
   const db = await getDB();
   return db.getFirstAsync(
@@ -175,7 +179,6 @@ export const getResumenEvento = async (eventId) => {
   );
 };
 
-// Desglose por producto: unidades vendidas y subtotal, ordenado por unidades DESC
 export const getResumenProductos = async (eventId) => {
   const db = await getDB();
   return db.getAllAsync(
@@ -195,27 +198,40 @@ export const getResumenProductos = async (eventId) => {
   );
 };
 
-// Detalle de cada venta con sus items
 export const getVentasConDetalle = async (eventId) => {
   const db = await getDB();
-  const ventas = await db.getAllAsync(
-    `SELECT * FROM ventas WHERE eventId = ? AND estado = 'confirmada' ORDER BY date DESC`,
+  const rows = await db.getAllAsync(
+    `SELECT
+       v.id, v.date, v.total, v.estado,
+       pv.cantidad, pv.precio, pv.subtotal,
+       pe.nombre, pe.presentacion
+     FROM ventas v
+     JOIN productos_venta pv ON pv.ventaId = v.id
+     JOIN productos_evento pe ON pe.id = pv.productoId
+     WHERE v.eventId = ? AND v.estado = 'confirmada'
+     ORDER BY v.date DESC`,
     [eventId]
   );
 
-  // Para cada venta traemos sus items
-  const ventasConItems = await Promise.all(
-    ventas.map(async (venta) => {
-      const items = await db.getAllAsync(
-        `SELECT pv.cantidad, pv.precio, pv.subtotal, pe.nombre, pe.presentacion
-         FROM productos_venta pv
-         JOIN productos_evento pe ON pe.id = pv.productoId
-         WHERE pv.ventaId = ?`,
-        [venta.id]
-      );
-      return { ...venta, items };
-    })
-  );
+  const ventasMap = new Map();
+  for (const row of rows) {
+    if (!ventasMap.has(row.id)) {
+      ventasMap.set(row.id, {
+        id: row.id,
+        date: row.date,
+        total: row.total,
+        estado: row.estado,
+        items: [],
+      });
+    }
+    ventasMap.get(row.id).items.push({
+      nombre: row.nombre,
+      presentacion: row.presentacion,
+      cantidad: row.cantidad,
+      precio: row.precio,
+      subtotal: row.subtotal,
+    });
+  }
 
-  return ventasConItems;
+  return Array.from(ventasMap.values());
 };
